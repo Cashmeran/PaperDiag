@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PaperDiag — AIGC 诊断</title>
+<style>
+:root {
+  --color-bg: #FAF7F2; --color-surface: #FFFFFF; --color-surface-alt: #F5EDE1;
+  --color-border: #E8DFD3; --color-text: #3C342B; --color-text-secondary: #B8A590;
+  --color-text-muted: #C5A880; --color-accent: #DA7756;
+  --color-hover: rgba(218,119,86,.08);
+  --font-heading: 'Georgia', 'Times New Roman', serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --radius-lg: 8px; --radius-xl: 12px; --radius-2xl: 16px;
+  --space-xs: 4px; --space-sm: 8px; --space-md: 16px; --space-lg: 24px;
+  --space-xl: 36px; --space-2xl: 48px; --space-3xl: 64px;
+  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background-color:var(--color-bg);background-image:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.006) 2px,rgba(0,0,0,.006) 4px);color:var(--color-text);font-family:var(--font-body);font-size:15px;line-height:1.7;-webkit-font-smoothing:antialiased;min-height:100vh}
+h1,h2,h3{font-family:var(--font-heading)}
+h1{font-size:36px;font-weight:400;line-height:1.2;letter-spacing:-0.01em}
+h2{font-size:24px;font-weight:700;line-height:1.3}
+h3{font-size:18px;font-weight:700;line-height:1.3}
+.container{max-width:840px;margin:0 auto;padding:var(--space-3xl) var(--space-lg)}
+
+.btn{display:inline-flex;align-items:center;gap:var(--space-sm);padding:10px 24px;border-radius:var(--radius-lg);font-size:14px;font-weight:500;cursor:pointer;border:none;transition:opacity .15s var(--ease-soft)}
+.btn-primary{background:var(--color-accent);color:#fff}
+.btn-primary:hover{opacity:.85}
+.btn-secondary{background:transparent;color:var(--color-text);border:1px solid var(--color-border)}
+.btn-secondary:hover{background:var(--color-hover)}
+.btn-large{padding:14px 32px;font-size:16px;border-radius:var(--radius-xl)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+.textarea{width:100%;min-height:260px;padding:var(--space-lg);font-family:var(--font-body);font-size:15px;line-height:1.8;border:1px solid var(--color-border);border-radius:var(--radius-xl);background:var(--color-surface);color:var(--color-text);resize:vertical;outline:none;transition:border-color .15s var(--ease-soft)}
+.textarea::placeholder{color:var(--color-text-muted)}
+.textarea:focus{border-color:var(--color-accent);box-shadow:0 0 0 3px var(--color-hover)}
+
+.upload-zone{border:2px dashed var(--color-border);border-radius:var(--radius-xl);padding:var(--space-2xl);text-align:center;cursor:pointer;margin-bottom:var(--space-md);transition:border-color .15s,background .15s}
+.upload-zone:hover{border-color:var(--color-accent);background:var(--color-hover)}
+.upload-zone.drag-over{border-color:var(--color-accent);background:var(--color-hover);border-style:solid}
+.upload-icon{font-size:32px;margin-bottom:var(--space-sm)}
+.upload-text{font-size:14px;color:var(--color-text-secondary)}
+.upload-hint{font-size:12px;color:var(--color-text-muted);margin-top:var(--space-xs)}
+
+.steps{display:flex;justify-content:center;gap:0;margin-bottom:var(--space-2xl)}
+.step-item{display:flex;align-items:center;gap:var(--space-sm);padding:8px 20px;font-size:13px;color:var(--color-text-muted);border-bottom:2px solid var(--color-border);transition:color .3s,border-color .3s}
+.step-item.active{color:var(--color-accent);border-color:var(--color-accent);font-weight:600}
+.step-item.done{color:var(--color-text-secondary);border-color:var(--color-text-secondary)}
+.step-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:11px;font-weight:700;background:var(--color-border);color:#fff}
+.step-item.active .step-num{background:var(--color-accent)}
+.step-item.done .step-num{background:var(--color-text-secondary)}
+
+.score-hero{text-align:center;padding:var(--space-2xl) var(--space-lg) var(--space-lg)}
+.score-value{font-family:var(--font-heading);font-size:64px;font-weight:400;line-height:1;margin-bottom:var(--space-xs)}
+.score-sub{font-size:14px;color:var(--color-text-secondary);margin-bottom:var(--space-lg)}
+.score-red{color:#C53030}.score-yellow{color:#D97706}.score-green{color:#059669}
+
+.ring-legend{display:flex;align-items:center;justify-content:center;gap:var(--space-2xl)}
+.ring-wrap{position:relative;width:110px;height:110px;flex-shrink:0}
+.ring-svg{transform:rotate(-90deg)}
+.ring-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
+.ring-pct{font-family:var(--font-heading);font-size:20px;font-weight:700;line-height:1}
+.ring-label{font-size:10px;color:var(--color-text-muted)}
+
+.legend-list{display:flex;flex-direction:column;gap:var(--space-sm);text-align:left;min-width:140px}
+.legend-item{display:flex;align-items:center;gap:var(--space-sm);font-size:13px;color:var(--color-text-secondary)}
+.legend-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.legend-dot-red{background:#C53030}.legend-dot-orange{background:#D97706}.legend-dot-yellow{background:#E6B422}
+.legend-num{font-weight:600;color:var(--color-text);margin-left:auto}
+
+.para-block{margin-bottom:var(--space-2xl)}
+.para-header{font-size:13px;color:var(--color-text-muted);margin-bottom:var(--space-sm)}
+.para-text{font-size:15px;line-height:2}
+.sent-red{background:rgba(197,48,48,.18);border-radius:2px;padding:1px 0}
+.sent-orange{background:rgba(217,119,6,.14);border-radius:2px;padding:1px 0}
+.sent-yellow{background:rgba(230,180,34,.10);border-radius:2px;padding:1px 0}
+
+.cta-area{text-align:center;padding:var(--space-2xl);margin:var(--space-xl) 0;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-2xl)}
+.cta-hint{font-size:13px;color:var(--color-text-secondary);margin-top:var(--space-sm)}
+
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--color-border);border-top-color:var(--color-accent);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{position:fixed;bottom:24px;right:24px;z-index:999;background:var(--color-text);color:#FAF7F2;padding:10px 20px;border-radius:var(--radius-lg);font-size:13px;animation:toastIn .3s var(--ease-soft)}
+@keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+#fileInput{display:none}
+
+.progress-wrap{width:100%;height:4px;background:var(--color-border);border-radius:2px;overflow:hidden;margin-top:var(--space-md);display:none}
+.progress-bar{height:100%;width:30%;background:var(--color-accent);border-radius:2px;animation:progressIndeterminate 1.2s ease-in-out infinite}
+@keyframes progressIndeterminate{0%{transform:translateX(-30%)}50%{transform:translateX(40%)}100%{transform:translateX(100%)}}
+
+@media(max-width:640px){.container{padding:var(--space-lg) var(--space-md)}}
+
+/* Print: only show diagnosis results */
+@media print{
+  body{background:#fff!important;background-image:none!important}
+  .container{max-width:100%;padding:0}
+  #panelInput,#stepIndicator,header,.cta-area,.steps,.progress-wrap,button,.btn{display:none!important}
+  #panelResults{display:block!important;margin-top:0}
+  #viewDiag{display:block!important}
+  .score-hero{padding:var(--space-lg) 0}
+  .para-block{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<header style="text-align:center;padding:var(--space-3xl) 0 var(--space-lg);">
+  <h1>PaperDiag</h1>
+  <p style="font-size:16px;color:var(--color-text-secondary);max-width:480px;margin:var(--space-sm) auto 0;">
+    开源、免费、本地运行的 AIGC 诊断工具
+  </p>
+</header>
+
+<div class="steps" id="stepIndicator">
+  <div class="step-item active" id="step1"><span class="step-num">1</span> 上传论文</div>
+  <div class="step-item" id="step2"><span class="step-num">2</span> AIGC 检测</div>
+</div>
+
+<section id="panelInput">
+  <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+    <div class="upload-icon">📄</div>
+    <div class="upload-text">点击或拖拽到此处上传，也可以粘贴到下方</div>
+    <div class="upload-hint">支持 .txt / .docx</div>
+  </div>
+  <input type="file" id="fileInput" accept=".txt,.docx" onchange="handleFile(event)">
+  <textarea class="textarea" id="inputText" placeholder="在此粘贴论文内容..."></textarea>
+  <div class="progress-wrap" id="progressWrap"><div class="progress-bar"></div></div>
+  <div style="display:flex;gap:12px;margin-top:var(--space-md);align-items:center;justify-content:flex-end;">
+    <span id="spinner" class="spinner" style="display:none"></span>
+    <button class="btn btn-primary btn-large" id="scanBtn" onclick="doScan()">开始 AIGC 检测</button>
+  </div>
+</section>
+
+<section id="panelResults" style="display:none;margin-top:var(--space-xl);">
+  <div id="viewDiag">
+    <div class="score-hero" id="scoreHero"></div>
+    <div id="heatmapArea" style="margin-bottom:var(--space-2xl);"></div>
+    <div class="cta-area" id="ctaActions" style="display:none;">
+      <h3 style="margin-bottom:var(--space-sm);">检测完成</h3>
+      <p style="color:var(--color-text-secondary);margin-bottom:var(--space-lg);">复制改写提示词到 ChatGPT / Claude 等大模型进行改写</p>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="copyRewritePrompt()">复制改写提示词</button>
+        <button class="btn btn-secondary" onclick="window.print()">打印 / 导出 PDF</button>
+      </div>
+      <div class="cta-hint">提示词含原文 + 逐句诊断 + 精确修改指令</div>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<script>
+let diagData = null;
+
+// ===== STEP INDICATOR =====
+function setStep(n) {
+  for (let i = 1; i <= 2; i++) {
+    let el = document.getElementById('step' + i);
+    el.classList.remove('active', 'done');
+    if (i < n) el.classList.add('done');
+    if (i === n) el.classList.add('active');
+  }
+}
+
+// ===== FILE UPLOAD =====
+function handleFile(e) { let f = e.target.files[0]; if(f) readFile(f); }
+
+function readFile(f) {
+  if (f.name && f.name.toLowerCase().endsWith('.docx')) {
+    let form = new FormData(); form.append('file', f);
+    document.getElementById('inputText').placeholder = '解析 docx ...';
+    fetch('/api/parse-docx', { method: 'POST', body: form })
+      .then(r => r.json()).then(d => {
+        if (d.error) { toast(d.error); return; }
+        document.getElementById('inputText').value = d.text;
+        toast('解析完成: ' + d.paragraph_count + ' 段');
+      }).catch(e => toast('解析失败')).finally(() => { document.getElementById('inputText').placeholder = '在此粘贴论文内容...'; });
+    return;
+  }
+  let r1 = new FileReader();
+  r1.onload = ev => {
+    let text = ev.target.result;
+    let bad = (text.match(/�/g) || []).length;
+    let cn = (text.match(/[一-鿿]/g) || []).length;
+    if (bad > 10 || (text.length > 100 && cn === 0)) {
+      let r2 = new FileReader();
+      r2.onload = e2 => { document.getElementById('inputText').value = e2.target.result; };
+      r2.readAsText(f, 'gbk');
+    } else { document.getElementById('inputText').value = text; }
+  };
+  r1.readAsText(f, 'utf-8');
+}
+
+// ===== DRAG & DROP =====
+const uz = document.getElementById('uploadZone');
+uz.addEventListener('dragover', e => { e.preventDefault(); uz.classList.add('drag-over'); });
+uz.addEventListener('dragleave', () => uz.classList.remove('drag-over'));
+uz.addEventListener('drop', e => { e.preventDefault(); uz.classList.remove('drag-over'); let f = e.dataTransfer.files[0]; if(f) readFile(f); });
+document.getElementById('inputText').addEventListener('dragover', e => { e.preventDefault(); });
+document.getElementById('inputText').addEventListener('drop', e => { e.preventDefault(); let f = e.dataTransfer.files[0]; if(f) readFile(f); else { let t = e.dataTransfer.getData('text'); if(t) document.getElementById('inputText').value = t; } });
+
+// ===== LOADING =====
+function setLoading(v) {
+  document.getElementById('spinner').style.display = v?'inline-block':'none';
+  document.getElementById('progressWrap').style.display = v?'block':'none';
+  document.getElementById('scanBtn').disabled = v;
+}
+
+// ===== SCAN =====
+async function doScan() {
+  let text = document.getElementById('inputText').value.trim();
+  if (text.length < 20) { toast('请至少输入 20 字'); return; }
+  setLoading(true); document.getElementById('panelResults').style.display = 'none';
+  try {
+    let r = await fetch('/api/scan', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({text}) });
+    diagData = await r.json();
+    if (diagData.error) { toast(diagData.error); return; }
+    renderDiagnosis();
+    document.getElementById('panelResults').style.display = 'block';
+    setStep(2);
+    document.getElementById('panelResults').scrollIntoView({behavior:'smooth'});
+  } catch(e) { toast('检测失败: '+e.message); }
+  finally { setLoading(false); }
+}
+
+// ===== RENDER =====
+function renderDiagnosis() {
+  if (!diagData) return;
+  let rate = diagData.ai_rate;
+  let color = rate > 40 ? 'score-red' : rate > 15 ? 'score-yellow' : 'score-green';
+  let verdict = rate > 40 ? 'AI 嫌疑较高' : rate > 15 ? '部分文本可疑' : '文本较为安全';
+  let bd = diagData.breakdown || {severe: 0, moderate: 0, mild: 0};
+
+  // Donut
+  let sev = bd.severe, mod = bd.moderate, mild = bd.mild, totalSuspect = sev + mod + mild;
+  let ringColor = rate > 40 ? '#C53030' : rate > 15 ? '#D97706' : '#059669';
+  let r = 42, circ = 2 * Math.PI * r;
+  let ringHtml = '';
+  if (totalSuspect > 0) {
+    let sevLen = (sev / totalSuspect) * circ, modLen = (mod / totalSuspect) * circ, mildLen = (mild / totalSuspect) * circ;
+    ringHtml = `<div class="ring-wrap"><svg class="ring-svg" width="110" height="110" viewBox="0 0 110 110">
+      <circle cx="55" cy="55" r="${r}" fill="none" stroke="var(--color-border)" stroke-width="10"/>
+      <circle cx="55" cy="55" r="${r}" fill="none" stroke="#C53030" stroke-width="10" stroke-dasharray="${sevLen} ${circ-sevLen}"/>
+      <circle cx="55" cy="55" r="${r}" fill="none" stroke="#D97706" stroke-width="10" stroke-dasharray="${modLen} ${circ-modLen}" stroke-dashoffset="${circ-sevLen}"/>
+      <circle cx="55" cy="55" r="${r}" fill="none" stroke="#E6B422" stroke-width="10" stroke-dasharray="${mildLen} ${circ-mildLen}" stroke-dashoffset="${circ-sevLen-modLen}"/>
+      </svg><div class="ring-center"><div class="ring-pct" style="color:${ringColor}">${rate}%</div><div class="ring-label">AI率</div></div></div>`;
+  }
+
+  let totalSent = diagData.total_sentences || 1;
+  let legendHtml = `<div class="legend-list">
+    <div class="legend-item"><span class="legend-dot legend-dot-red"></span> 重度疑似 <span class="legend-num">${sev} 句 ${Math.round(sev/totalSent*100)}%</span></div>
+    <div class="legend-item"><span class="legend-dot legend-dot-orange"></span> 中度疑似 <span class="legend-num">${mod} 句 ${Math.round(mod/totalSent*100)}%</span></div>
+    <div class="legend-item"><span class="legend-dot legend-dot-yellow"></span> 轻度疑似 <span class="legend-num">${mild} 句 ${Math.round(mild/totalSent*100)}%</span></div>
+  </div>`;
+
+  document.getElementById('scoreHero').innerHTML =
+    `<div class="score-value ${color}">${rate}%</div>
+     <div class="score-sub">${verdict} · ${diagData.suspect_sentences || diagData.ai_sentences}/${diagData.total_sentences} 句可疑</div>
+     <div class="ring-legend">${ringHtml}${legendHtml}</div>`;
+
+  let html = '';
+  diagData.paragraphs.forEach((p, i) => {
+    let hasAI = p.ai_sentence_count > 0;
+    let borderColor = hasAI ? 'var(--color-accent)' : 'var(--color-border)';
+    html += `<div class="para-block" style="border-left:3px solid ${borderColor};padding-left:var(--space-md);">`;
+    html += `<div class="para-header">段落 ${i+1} · ${p.ai_sentence_count}/${p.total_sentence_count} 句中/重度嫌疑</div><div class="para-text">`;
+    p.sentences.forEach(s => {
+      let cls = s.zone === 'red' || s.zone === 'deep_red' ? 'sent-red' : s.zone === 'orange' ? 'sent-orange' : s.zone === 'yellow' ? 'sent-yellow' : '';
+      html += `<span class="sent ${cls}" title="${s.zone}: ${s.score}%">${escapeHtml(s.text)}。</span>`;
+    });
+    html += `</div></div>`;
+  });
+  document.getElementById('heatmapArea').innerHTML = html;
+  document.getElementById('ctaActions').style.display = 'block';
+}
+
+// ===== COPY PROMPT =====
+function copyRewritePrompt() {
+  if (!diagData) { toast('请先执行检测'); return; }
+  let prompt = `你是学术润色专家。根据诊断结果改写以下论文，降低AIGC检测率。\n\n## 改写规则\n1. 只改红色/橙色句子，绿色不动\n2. 删除AI标志连接词（此外/然而/因此/综上所述 等）\n3. 打破均匀句长，长短句交错\n4. 用口语化表达替换生硬套话\n5. 保留所有数据、引文、专业术语\n\n## 诊断\n总AI率: ${diagData.ai_rate}%\n\n`;
+  diagData.paragraphs.forEach((p, i) => {
+    prompt += `### 段落${i+1}\n`;
+    p.sentences.forEach((s, j) => {
+      if (s.zone !== 'green') {
+        let label = s.zone === 'red' ? '重度AI' : s.zone === 'orange' ? '中度AI' : '轻度AI';
+        prompt += `  [${label}] ${s.text}\n`;
+      }
+    });
+    prompt += '\n';
+  });
+  prompt += `请逐段输出改写后论文，保持学术含义不变。`;
+  navigator.clipboard.writeText(prompt).then(() => toast('已复制 ' + (prompt.length/1000).toFixed(1) + 'KB 提示词到剪贴板')).catch(() => toast('复制失败'));
+}
+
+// ===== HELPERS =====
+function escapeHtml(s) { let d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+function toast(msg) { let t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .3s';setTimeout(()=>t.remove(),300);},3000); }
+</script>
+</body>
+</html>

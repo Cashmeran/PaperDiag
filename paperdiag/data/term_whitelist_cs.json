@@ -1,0 +1,27 @@
+{
+  "discipline": "计算机科学",
+  "description": "计算机科学核心术语白名单，改写时保护这些术语不被破坏",
+  "terms": [
+    "卷积神经网络", "CNN", "循环神经网络", "RNN", "LSTM", "GRU",
+    "Transformer", "注意力机制", "自注意力", "多头注意力",
+    "深度学习", "机器学习", "强化学习", "迁移学习", "联邦学习",
+    "反向传播", "梯度下降", "随机梯度下降", "Adam", "SGD",
+    "损失函数", "交叉熵", "均方误差", "正则化", "Dropout",
+    "激活函数", "ReLU", "Sigmoid", "Tanh", "Softmax",
+    "张量", "向量", "矩阵", "嵌入", "Embedding",
+    "编码器", "解码器", "Encoder", "Decoder",
+    "自然语言处理", "NLP", "计算机视觉", "CV",
+    "过拟合", "欠拟合", "泛化", "偏差", "方差",
+    "超参数", "批量", "Batch", "Epoch", "迭代",
+    "残差网络", "ResNet", "VGG", "Inception", "MobileNet",
+    "BERT", "GPT", "LLaMA", "Qwen", "ChatGPT",
+    "图神经网络", "GNN", "GCN", "GraphSAGE",
+    "生成对抗网络", "GAN", "变分自编码器", "VAE",
+    "扩散模型", "Diffusion Model", "Stable Diffusion",
+    "知识蒸馏", "模型压缩", "量化", "剪枝",
+    "大语言模型", "LLM", "预训练", "微调", "LoRA",
+    "分词", "Tokenization", "BPE", "SentencePiece",
+    "困惑度", "Perplexity", "BLEU", "ROUGE",
+    "注意力分数", "QKV", "位置编码", "层归一化"
+  ]
+}

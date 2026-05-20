@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "paperdiag"
+version = "0.1.0"
+description = "中文学术论文降AIGC率开源工具 — 告诉你论文哪里像AI，并帮你改掉"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "paperdiag"}
+]
+keywords = ["aigc", "ai-detection", "chinese", "academic", "paper", "humanize"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Education",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Text Processing :: Linguistic",
+]
+
+dependencies = [
+    "click>=8.0",
+    "jieba>=0.42",
+    "numpy>=1.24",
+    "scikit-learn>=1.3",
+]
+
+[project.optional-dependencies]
+embedding = [
+    "sentence-transformers>=3.0",
+]
+llm = [
+    # LLM层通过Ollama HTTP API调用（无需额外Python依赖）
+    # 用户需安装Ollama: https://ollama.com/download
+]
+ai = [
+    "paperdiag[embedding,llm]",
+]
+docx = [
+    "python-docx>=1.0",
+]
+rich = [
+    "rich>=13.0",
+]
+full = [
+    "paperdiag[ai,docx,rich]",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+]
+
+[project.scripts]
+paperdiag = "paperdiag.cli:cli"
+
+[tool.setuptools.packages.find]
+include = ["paperdiag*"]
+
+[tool.setuptools.package-data]
+paperdiag = ["data/*.json"]
