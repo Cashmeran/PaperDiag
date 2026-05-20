@@ -7,7 +7,7 @@ PaperDiag 是一个面向中文学术论文的 AIGC 检测工具。
 ## 快速开始
 
 ```bash
-git clone https://github.com/<你的用户名>/paperdiag.git
+git clone https://github.com/Cashmeran/paperdiag.git
 cd paperdiag
 pip install -e .
 python -m paperdiag.cli webui
