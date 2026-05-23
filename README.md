@@ -13,7 +13,8 @@ pip install -e .
 python -m paperdiag.cli webui
 ```
 
-浏览器打开  http://localhost:5000 粘贴论文点检测即可。
+浏览器打开  http://localhost:5000 或双击run.bat 粘贴论文点检测即可。
+
 
 ## 依赖
 
