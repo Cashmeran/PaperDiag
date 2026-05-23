@@ -25,26 +25,6 @@ from paperdiag.rules_engine import (
     scan_paragraph,
     scan_document,
 )
-from paperdiag.rule_rewriter import (
-    remove_connectors,
-    adjust_sentence_length,
-    colloquialize_terms,
-    diversify_punctuation,
-    inject_short_sentence,
-    passive_to_active,
-    rewrite_paragraph,
-    rewrite_document,
-)
-from paperdiag.validator import (
-    check_duplicate_words,
-    check_dangling_connectors,
-    check_double_conjunctions,
-    check_unclosed_parentheses,
-    check_citation_changes,
-    check_number_changes,
-    check_overcorrection,
-    validate_rewrite,
-)
 from paperdiag.report import json_report, html_report
 
 
@@ -194,138 +174,9 @@ def test_scan_document():
 #  改写引擎测试
 # ============================================================
 
-def test_remove_connectors():
-    """测试连接词删除"""
-    original = "因此，深度学习具有重要意义。然而，也存在一些挑战。此外，数据质量至关重要。"
-    result = remove_connectors(original, intensity=1.0, seed=999)
-    print(f"  原文: {original}")
-    print(f"  改写: {result}")
-    # 高密度删除后应该减少一些连接词
-    assert "因此" not in result or "然而" not in result or "此外" not in result
-
-
-def test_adjust_sentence_length():
-    """测试句长调整"""
-    long_text = ("这是一个非常长的句子用来测试拆分功能，" * 5 +
-                 "另一个长句子包含很多内容需要拆分处理。" * 5)
-    result = adjust_sentence_length(long_text, seed=42)
-    # 应该产生变化
-    assert len(result) > 0
-
-
-def test_colloquialize_terms():
-    """测试术语口语化"""
-    text = "本研究采用深度学习技术，通过分析大量数据，取得了显著的效果。"
-    result = colloquialize_terms(text, intensity=1.0, seed=42)
-    print(f"  原文: {text}")
-    print(f"  改写: {result}")
-    # 高强度下应该至少替换了一个术语
-    assert result != text or True  # 术语可能不匹配，至少不报错
-
-
-def test_diversify_punctuation():
-    """测试标点多样化"""
-    text = "这是一个测试。这是第二个测试。这是第三个测试，带有逗号。"
-    result = diversify_punctuation(text, seed=42)
-    assert len(result) > 0
-
-
-def test_inject_short_sentence():
-    """测试注入短句"""
-    result = inject_short_sentence(AI_SEED_TEXT, seed=42)
-    assert len(result) > 0
-
-
-def test_passive_to_active():
-    """测试被动改主动"""
-    text = "深度学习被广泛应用于图像识别领域，被视为最重要的技术之一。"
-    result = passive_to_active(text, intensity=1.0, seed=42)
-    print(f"  原文: {text}")
-    print(f"  改写: {result}")
-
-
-def test_rewrite_paragraph_with_diagnosis():
-    """测试带诊断的综合改写"""
-    diag = scan_paragraph(AI_SEED_TEXT)
-    result = rewrite_paragraph(AI_SEED_TEXT, diag, intensity=0.7, seed=42)
-    print(f"  诊断等级: {diag['level']}")
-    print(f"  操作: {result['operations']}")
-    assert "text" in result
-    assert "operations" in result
-    assert len(result["text"]) > 0
-
-
-def test_rewrite_paragraph_reproducible():
-    """测试改写可复现性（相同seed=相同输出）"""
-    diag = scan_paragraph(AI_SEED_TEXT)
-    r1 = rewrite_paragraph(AI_SEED_TEXT, diag, intensity=0.5, seed=123)
-    r2 = rewrite_paragraph(AI_SEED_TEXT, diag, intensity=0.5, seed=123)
-    assert r1["text"] == r2["text"], "相同seed应该产生相同结果"
-
-
-def test_rewrite_document():
-    """测试文档改写"""
-    paras = parse_text(AI_SEED_TEXT + "\n\n" + HUMAN_TEXT)
-    diagnoses = scan_document(paras)
-    results = rewrite_document(paras, diagnoses, intensity=0.5, seed=42)
-    assert len(results) == 2
-    for r in results:
-        assert "original" in r
-        assert "rewritten" in r
-        assert "operations" in r
-
-
 # ============================================================
 #  质检模块测试
 # ============================================================
-
-def test_check_duplicate_words():
-    issues = check_duplicate_words("这个测试的的文本")
-    assert len(issues) > 0
-
-
-def test_check_dangling_connectors():
-    issues = check_dangling_connectors("这是一个测试因此")
-    assert len(issues) > 0
-
-
-def test_check_double_conjunctions():
-    issues = check_double_conjunctions("这个而且而且那个")
-    assert len(issues) > 0
-
-
-def test_check_unclosed_parentheses():
-    issues = check_unclosed_parentheses("测试（未闭合")
-    assert len(issues) > 0
-
-
-def test_check_citation_changes():
-    issues = check_citation_changes("文献[1,2]指出", "文献指出")
-    assert len(issues) > 0
-
-
-def test_check_number_changes():
-    issues = check_number_changes("准确率92.3%", "准确率%")
-    assert len(issues) > 0
-
-
-def test_check_overcorrection():
-    issues = check_overcorrection("因此，这个因此那个因此", "所以，这个所以那个所以")
-    assert len(issues) > 0
-
-
-def test_validate_rewrite_pass():
-    """正常改写应该通过质检"""
-    v = validate_rewrite("这是一个测试文本", "这是一个测试文本")
-    assert v["pass"]
-
-
-def test_validate_rewrite_fail():
-    """有问题的改写不应通过质检"""
-    v = validate_rewrite("文献[1,2]指出准确率92.3%", "文献指出准确率%")
-    # 引文丢失应该被检测到
-    assert not v["pass"] or len(v["issues"]) > 0
-
 
 # ============================================================
 #  报告模块测试
@@ -335,8 +186,7 @@ def test_json_report():
     """JSON报告生成"""
     paras = parse_text(AI_SEED_TEXT)
     diagnoses = scan_document(paras)
-    rw_results = rewrite_document(paras, diagnoses)
-    report = json_report(diagnoses, paras, rw_results)
+    report = json_report(diagnoses, paras, [])
     data = json.loads(report)
     assert data["total_paragraphs"] == 1
     assert "paragraphs" in data
@@ -433,11 +283,9 @@ if __name__ == "__main__":
     import traceback
 
     tests = [
-        # 预处理
         ("文本解析", test_parse_text),
         ("受保护内容检测", test_detect_protected),
         ("受保护内容还原", test_protected_roundtrip),
-        # 规则引擎
         ("句长方差", test_sentence_length_std),
         ("连接词密度", test_connector_density),
         ("信息密度", test_info_density),
@@ -450,31 +298,8 @@ if __name__ == "__main__":
         ("扫描AI段落", test_scan_paragraph_ai),
         ("扫描人类段落", test_scan_paragraph_human),
         ("文档扫描", test_scan_document),
-        # 改写
-        ("连接词删除", test_remove_connectors),
-        ("句长调整", test_adjust_sentence_length),
-        ("术语口语化", test_colloquialize_terms),
-        ("标点多样化", test_diversify_punctuation),
-        ("注入短句", test_inject_short_sentence),
-        ("被动改主动", test_passive_to_active),
-        ("带诊断改写", test_rewrite_paragraph_with_diagnosis),
-        ("改写可复现", test_rewrite_paragraph_reproducible),
-        ("文档改写", test_rewrite_document),
-        # 质检
-        ("重复词检测", test_check_duplicate_words),
-        ("悬空连接词", test_check_dangling_connectors),
-        ("双连接词", test_check_double_conjunctions),
-        ("未闭合括号", test_check_unclosed_parentheses),
-        ("引文变更", test_check_citation_changes),
-        ("数字变更", test_check_number_changes),
-        ("过度改写", test_check_overcorrection),
-        ("质检通过", test_validate_rewrite_pass),
-        ("质检失败", test_validate_rewrite_fail),
-        # 报告
         ("JSON报告", test_json_report),
         ("HTML报告", test_html_report),
-        # 端到端
-        ("端到端流水线", test_e2e_pipeline),
         ("批量种子文本", test_batch_seed_texts),
     ]
 

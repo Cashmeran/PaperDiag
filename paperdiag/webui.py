@@ -10,7 +10,6 @@ from flask import Flask, render_template, request, jsonify
 
 from .preprocessor import auto_parse
 from .rules_engine import scan_document, scan_sentences
-from .rule_rewriter import rewrite_document
 from .fusion import fuse_diagnosis
 
 app = Flask(__name__, template_folder="templates")
@@ -22,11 +21,7 @@ try:
     HAS_EMBEDDING = True
 except ImportError:
     HAS_EMBEDDING = False
-try:
-    from .model_manager import is_backend_available
-    HAS_LLM = True
-except ImportError:
-    HAS_LLM = False
+HAS_LLM = False
 
 
 @app.route("/")
@@ -97,96 +92,6 @@ def api_scan():
             "ai_sentences": sent_result["ai_sentences"],
             "suspect_sentences": sent_result.get("suspect_sentences", 0),
             "paragraphs": results,
-        })
-    except Exception as e:
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route("/api/fix", methods=["POST"])
-def api_fix():
-    try:
-        data = request.get_json()
-        text = data.get("text", "")
-        intensity = data.get("intensity", 0.3)
-        seed = data.get("seed", 42)
-        if len(text.strip()) < 20:
-            return jsonify({"error": "文本太短"}), 400
-
-        paragraphs = auto_parse(text)
-        if not paragraphs:
-            return jsonify({"error": "未检测到有效段落"}), 400
-
-        # 改写前AI率
-        before = scan_sentences(paragraphs)
-
-        diagnoses = scan_document(paragraphs)
-        semantic = None
-        if HAS_EMBEDDING:
-            try:
-                pts = [p.text if hasattr(p, 'text') else str(p) for p in paragraphs]
-                semantic = scan_semantic(pts)
-            except Exception:
-                pass
-        fused = fuse_diagnosis(diagnoses, semantic)
-        rewrite_results = rewrite_document(paragraphs, fused, intensity=intensity, seed=seed)
-
-        # 组织改写前的句子数据（按段落）
-        before_sents = {}
-        for s in before.get("sentences", []):
-            pi = s.get("paragraph_index", 0)
-            before_sents.setdefault(pi, []).append(s)
-
-        rewritten_texts = []
-        results = []
-        for i, (p, rw) in enumerate(zip(paragraphs, rewrite_results)):
-            orig = p.text if hasattr(p, 'text') else str(p)
-            re = rw.get("rewritten", orig)
-            rewritten_texts.append(re)
-            results.append({
-                "index": i, "original": orig, "rewritten": re,
-                "operations": rw.get("operations", []), "changed": orig != re,
-                "sentences_before": [
-                    {"text": s["text"], "zone": s["zone"], "score": round(s["score"] * 100)}
-                    for s in before_sents.get(i, [])
-                ],
-            })
-
-        full_rewritten = "\n\n".join(rewritten_texts)
-
-        # 改写后AI率 + 句子级扫描
-        after_paras = auto_parse(full_rewritten)
-        after = scan_sentences(after_paras) if after_paras else {"ai_rate": before["ai_rate"], "sentences": []}
-
-        # 组织改写后的句子数据（按段落）
-        after_sents = {}
-        for s in after.get("sentences", []):
-            pi = s.get("paragraph_index", 0)
-            after_sents.setdefault(pi, []).append(s)
-
-        for i, r in enumerate(results):
-            r["sentences_after"] = [
-                {"text": s["text"], "zone": s["zone"], "score": round(s["score"] * 100)}
-                for s in after_sents.get(i, [])
-            ]
-
-        return jsonify({
-            "full_text": full_rewritten,
-            "ai_rate_before": round(before["ai_rate"] * 100),
-            "ai_rate_after": round(after["ai_rate"] * 100),
-            "ai_rate_change": round((before["ai_rate"] - after["ai_rate"]) * 100),
-            "breakdown_before": {
-                "severe": before.get("red_count", 0),
-                "moderate": before.get("orange_count", 0),
-                "mild": before.get("yellow_count", 0),
-            },
-            "breakdown_after": {
-                "severe": after.get("red_count", 0),
-                "moderate": after.get("orange_count", 0),
-                "mild": after.get("yellow_count", 0),
-            },
-            "paragraphs": results,
-            "modified_count": sum(1 for r in results if r["changed"]),
         })
     except Exception as e:
         traceback.print_exc()

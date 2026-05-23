@@ -15,11 +15,8 @@ import click
 
 from .preprocessor import auto_parse, Paragraph
 from .rules_engine import scan_document
-from .rule_rewriter import rewrite_document
-from .validator import validate_rewrite
 from .report import terminal_report, json_report, html_report
-from .logger import RewriteLogger
-from .fusion import fuse_diagnosis, generate_gap_report, generate_rewrite_instructions
+from .fusion import fuse_diagnosis, generate_rewrite_instructions
 
 # 可选导入
 try:
@@ -28,25 +25,10 @@ try:
 except ImportError:
     HAS_EMBEDDING = False
 
-try:
-    from .model_manager import ensure_ollama_ready, is_backend_available
-    HAS_LLM = True
-except ImportError:
-    HAS_LLM = False
+HAS_LLM = False
+HAS_LLM_MODULES = False
 
-try:
-    from .llm_diagnose import diagnose_document
-    from .llm_rewriter import rewrite_paragraph_multi_temp
-    HAS_LLM_MODULES = True
-except ImportError:
-    HAS_LLM_MODULES = False
 
-# 尝试导入 docx 写入
-try:
-    from docx import Document as DocxDocument
-    HAS_DOCX_WRITE = True
-except ImportError:
-    HAS_DOCX_WRITE = False
 
 
 @click.group()
@@ -68,27 +50,6 @@ def webui(port: int):
     from .webui import app
     app.run(host="0.0.0.0", port=port, debug=False)
 
-
-@cli.command()
-@click.option("--proxy", "-p", default=None, help="HTTP代理 (如 http://127.0.0.1:7897)")
-def setup(proxy: str):
-    """下载 llama.cpp 引擎，首次使用前运行一次"""
-    try:
-        from .model_manager import setup_engines, _has_nvidia_gpu
-    except ImportError:
-        click.echo("[error] model_manager 模块不可用")
-        return
-
-    click.echo("[setup] PaperDiag — 引擎安装")
-    has_gpu = _has_nvidia_gpu()
-    size = "~146MB (CPU + CUDA)" if has_gpu else "~15MB (CPU only)"
-    click.echo(f"  GPU: {'NVIDIA →' if has_gpu else '无 →'} 下载 {size}")
-
-    ok = setup_engines(proxy)
-    if ok:
-        click.echo("[setup] 完成！现在可以 paperdiag scan/fix --llm")
-    else:
-        click.echo("[setup] 下载失败，请检查网络或加 --proxy")
 
 
 @cli.command()
@@ -450,31 +411,3 @@ def _terminal_fused_report(fused_results: list[dict], paragraphs: list):
                 print(f"  {idx}. {inst}")
 
 
-def _save_results(paragraphs: list, rewrite_results: list[dict],
-                  out_path: Path, input_path: str):
-    """保存改写结果"""
-    # 保存改写后的纯文本
-    rewritten_texts = []
-    for rw in rewrite_results:
-        text = rw.get("rewritten", rw.get("text", ""))
-        rewritten_texts.append(text)
-
-    txt_path = out_path / "rewritten.txt"
-    txt_path.write_text("\n\n".join(rewritten_texts), encoding="utf-8")
-    click.echo(f"   [txt] {txt_path}")
-
-    # 如果安装了docx，也保存docx
-    if HAS_DOCX_WRITE and input_path.lower().endswith(".docx"):
-        try:
-            doc = DocxDocument()
-            for text in rewritten_texts:
-                doc.add_paragraph(text)
-            docx_path = out_path / "rewritten.docx"
-            doc.save(str(docx_path))
-            click.echo(f"   [docx] {docx_path}")
-        except Exception:
-            pass  # docx写入失败不重要
-
-
-if __name__ == "__main__":
-    cli()
